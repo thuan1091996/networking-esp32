@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "freertos.h": "c",
+        "esp_spi_flash.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
+}
