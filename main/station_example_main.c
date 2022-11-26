@@ -28,7 +28,10 @@
    the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
 */
 
-#if 0
+#if 1
+#define EXAMPLE_ESP_WIFI_SSID      "Sesame"
+#define EXAMPLE_ESP_WIFI_PASS      "sesame@262"
+#elif
 #define EXAMPLE_ESP_WIFI_SSID      "Trung Nguyen-2.4G"
 #define EXAMPLE_ESP_WIFI_PASS      "trungnguyen"
 #else /* 0 */
@@ -60,6 +63,38 @@
 #elif CONFIG_ESP_WIFI_AUTH_WAPI_PSK
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
 #endif
+/******************************************************************************
+* Tasks definitions
+*******************************************************************************/
+#define HTTP_TASK_STACK_SIZE							(10*1024)
+#define HTTP_TASK_PRIORITY								(tskIDLE_PRIORITY + 1)
+#define HTTP_TASK_INDEX									(0)
+
+/******************************************************************************
+* Module Typedefs
+*******************************************************************************/
+typedef struct
+{
+    TaskFunction_t const TaskCodePtr;           /*< Pointer to the task function */
+    const char * const TaskName;                /*< String task name             */
+    const uint16_t StackDepth;                  /*< Stack depth                  */
+    void * const ParametersPtr;                 /*< Parameter Pointer            */
+    UBaseType_t TaskPriority;                   /*< Task Priority                */
+    TaskHandle_t * const TaskHandle;            /*< Pointer to task handle       */
+}TaskInitParams_t;
+
+
+/******************************************************************************
+* Task variables
+*******************************************************************************/
+
+TaskHandle_t xHTTP_handler = NULL;
+TaskInitParams_t const TasksTable[] =
+{
+ // Function pointer,	String Name,	Stack size,		Parameter,	Priority,	Task Handle
+   {&vHTTPx_Task,	"HTTP Task",	HTTP_TASK_STACK_SIZE,  NULL, HTTP_TASK_PRIORITY, &xHTTP_handler},
+};
+
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -73,6 +108,18 @@ static EventGroupHandle_t s_wifi_event_group;
 #define MODULE_NAME			"MAIN_APP "
 
 static int s_retry_num = 0;
+
+void http_init()
+{
+	xTaskCreate(TasksTable[HTTP_TASK_INDEX].TaskCodePtr,
+				TasksTable[HTTP_TASK_INDEX].TaskName,
+				TasksTable[HTTP_TASK_INDEX].StackDepth,
+				TasksTable[HTTP_TASK_INDEX].ParametersPtr,
+				TasksTable[HTTP_TASK_INDEX].TaskPriority,
+				TasksTable[HTTP_TASK_INDEX].TaskHandle);
+	assert(NULL != TasksTable[HTTP_TASK_INDEX].TaskHandle);
+	ESP_LOGI(MODULE_NAME, "HTTP task created \r\n");
+}
 
 #if TMT_DEBUG
 void tmt_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
@@ -106,7 +153,8 @@ void tmt_event_handler(void* event_handler_arg, esp_event_base_t event_base, int
 		ESP_LOGI(MODULE_NAME, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
 		s_retry_num = 0;
 		xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-		http_client_req();
+		http_init();
+
 	}
 }
 #else

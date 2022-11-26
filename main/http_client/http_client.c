@@ -7,12 +7,30 @@
 
 #include "http_client.h"
 #include <esp_http_client.h>
+#include <esp_crt_bundle.h>
 
 #define MODULE_NAME					"HTTP_CLIENT:"
 #define HTTP_RESP_MAX_LEN			1048
 #define HTTP_USE_DYN_ALLOC			0
 
 static char http_resp_buffer[HTTP_RESP_MAX_LEN] = {0};
+
+void vHTTPx_Task(void* param)
+{
+	#if HTTP_REQ
+	/* HTTP request */
+	ESP_LOGI(MODULE_NAME, "\r\n/******** TESTING HTTP REQUEST******/\r\n");
+	http_client_req();
+	#else /* HTTP_REQ */
+	/* HTTPS request */
+	ESP_LOGI(MODULE_NAME, "\r\n/******** TESTING HTTPS REQUEST******/\r\n");
+	https_client_req();
+	#endif /* End of HTTP_REQ */
+	while(1)
+	{
+
+	};
+}
 
 esp_err_t _http_event_handle(esp_http_client_event_t *evt)
 {
@@ -45,7 +63,6 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt)
                 printf("[Response data]: %.*s \r\n", evt->data_len, (char*)evt->data);
             }
 			#endif /* End of 0 */
-
 
             break;
         case HTTP_EVENT_ON_FINISH:
@@ -90,6 +107,46 @@ void http_client_req()
 	else
 	{
 		ESP_LOGE(MODULE_NAME, "HTTP GET request failed: %s", esp_err_to_name(err));
+	}
+	esp_http_client_cleanup(client);
+}
+
+
+extern const unsigned char wordtime_cert[] asm("_binary_worldtime_pem_start");
+
+/* Send HTTPS request */
+void https_client_req(void)
+{
+	int response_len = 0;
+
+	esp_http_client_config_t https_request =
+	{
+		#if !USE_ESP_CERT_BUNDLE
+		.url = "https://www.howsmyssl.com",
+		.crt_bundle_attach = esp_crt_bundle_attach,
+		#else /* !USE_ESP_CERT_BUNDLE */
+		.url =  "https://worldtimeapi.org/api/timezone/Europe/London/",
+		.cert_pem = (char*)wordtime_cert,
+		#endif /* End of !USE_ESP_CERT_BUNDLE */
+		.event_handler = _http_event_handle,
+
+	};
+	esp_http_client_handle_t client = esp_http_client_init(&https_request);
+	assert(NULL != client);
+	ESP_LOGI(MODULE_NAME, "Update HTTPS client handler to: 0x%X \r\n", (uint32_t)client);
+
+	esp_err_t err = esp_http_client_perform(client);
+	if (err == ESP_OK)
+	{
+		response_len = esp_http_client_get_content_length(client);
+		ESP_LOGI(MODULE_NAME, "Status = %d, content_length = %d",
+				   esp_http_client_get_status_code(client), response_len);
+		ESP_LOG_BUFFER_HEX(MODULE_NAME, http_resp_buffer, response_len);
+		ESP_LOGI(MODULE_NAME, "HTTPS response data: %.*s \r\n", response_len, http_resp_buffer);
+	}
+	else
+	{
+		ESP_LOGE(MODULE_NAME, "HTTPS GET request failed: %s", esp_err_to_name(err));
 	}
 	esp_http_client_cleanup(client);
 }
