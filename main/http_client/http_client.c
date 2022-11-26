@@ -9,9 +9,21 @@
 #include <esp_http_client.h>
 #include <esp_crt_bundle.h>
 
-#define MODULE_NAME					"HTTP_CLIENT:"
-#define HTTP_RESP_MAX_LEN			1048
-#define HTTP_USE_DYN_ALLOC			0
+#define MODULE_NAME						"HTTP_CLIENT:"
+#define HTTP_RESP_MAX_LEN				1048
+#define HTTP_USE_DYN_ALLOC				0
+#define HTTP_LARGE_PAYLOAD				1
+#define HTTP_LARGE_PAYLOAD_INIT_LEN		(10)
+
+
+typedef struct
+{
+	uint8_t* 	p_payload;
+	uint32_t	payload_len;
+}large_payload_t;
+
+
+#if HTTP_LARGE_PAYLOAD
 
 static char http_resp_buffer[HTTP_RESP_MAX_LEN] = {0};
 
@@ -28,7 +40,7 @@ void vHTTPx_Task(void* param)
 	#endif /* End of HTTP_REQ */
 	while(1)
 	{
-
+		vTaskDelay(pdMS_TO_TICKS(500)); /* Delay to prevent WDT trigger */
 	};
 }
 
@@ -52,10 +64,29 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt)
             break;
         case HTTP_EVENT_ON_DATA:
             ESP_LOGI(MODULE_NAME, "HTTP_EVENT_ON_DATA, len=%d \r\n", evt->data_len);
+            large_payload_t* recv_data = evt->user_data;
 
+        	ESP_LOGW(MODULE_NAME, "Recv data addr 0x%X \r\n", (uint32_t)recv_data);
+        	ESP_LOGW(MODULE_NAME, "Recvdata.p_payload addr 0x%X \r\n", (uint32_t)recv_data->p_payload);
+            #if HTTP_LARGE_PAYLOAD
+
+            /* Alloc new buffer with appropreate size */
+            recv_data->p_payload = realloc(recv_data->p_payload, recv_data->payload_len + evt->data_len + 1);
+            assert(NULL != recv_data->p_payload);
+
+            /* Move data to new buffer */
+            memmove(&recv_data->p_payload[recv_data->payload_len], evt->data, evt->data_len);
+            recv_data->payload_len += evt->data_len;
+
+            /* Update NULL character */
+            recv_data->p_payload[recv_data->payload_len] = 0;
+
+			#else /* HTTP_LARGE_PAYLOAD */
             /* TMT: Get data from event into response buffer */
             memcpy(http_resp_buffer, evt->data, evt->data_len);
 			ESP_LOGI(MODULE_NAME, "HTTP response data: %.*s \r\n",evt->data_len, (char*)http_resp_buffer);
+			#endif /* End of HTTP_LARGE_PAYLOAD */
+
 
 			#if 0
 			if (!esp_http_client_is_chunked_response(evt->client))
@@ -114,7 +145,54 @@ void http_client_req()
 
 extern const unsigned char wordtime_cert[] asm("_binary_worldtime_pem_start");
 
-/* Send HTTPS request */
+
+
+/* Send HTTPS request
+ * Using dynamic allocation to stored large data*/
+void https_client_req(void)
+{
+	int response_len = 0;
+	large_payload_t recv_payload = {
+			.p_payload = NULL,
+			.payload_len = 0,
+	};
+	recv_payload.p_payload = malloc(HTTP_LARGE_PAYLOAD_INIT_LEN);
+	assert(NULL != recv_payload.p_payload);
+
+	esp_http_client_config_t https_request =
+	{
+		#if !USE_ESP_CERT_BUNDLE
+		.url = "https://www.howsmyssl.com/a/check",
+		.crt_bundle_attach = esp_crt_bundle_attach,
+		#else /* !USE_ESP_CERT_BUNDLE */
+		.url =  "https://worldtimeapi.org/api/timezone/Europe/London/",
+		.cert_pem = (char*)wordtime_cert,
+		#endif /* End of !USE_ESP_CERT_BUNDLE */
+		.event_handler = _http_event_handle,
+		.user_data = (void*)&recv_payload,
+	};
+	esp_http_client_handle_t client = esp_http_client_init(&https_request);
+	assert(NULL != client);
+
+	ESP_LOGI(MODULE_NAME, "Update HTTPS client handler to: 0x%X \r\n", (uint32_t)client);
+	ESP_LOGW(MODULE_NAME, "Recv data addr 0x%X \r\n", (uint32_t)&recv_payload);
+	ESP_LOGW(MODULE_NAME, "Recvdata.p_payload addr 0x%X \r\n", (uint32_t)recv_payload.p_payload);
+
+	esp_err_t err = esp_http_client_perform(client);
+	if (err == ESP_OK)
+	{
+		ESP_LOGI(MODULE_NAME, "Status = %d, content_length = %d",
+				   esp_http_client_get_status_code(client), recv_payload.payload_len);
+		ESP_LOGI(MODULE_NAME, "HTTPS response data: %.*s \r\n", recv_payload.payload_len, recv_payload.p_payload);
+	}
+	else
+	{
+		ESP_LOGE(MODULE_NAME, "HTTPS GET request failed: %s", esp_err_to_name(err));
+	}
+	esp_http_client_cleanup(client);
+}
+
+#else /* HTTP_LARGE_PAYLOAD */
 void https_client_req(void)
 {
 	int response_len = 0;
@@ -150,3 +228,5 @@ void https_client_req(void)
 	}
 	esp_http_client_cleanup(client);
 }
+
+#endif /* End of HTTP_LARGE_PAYLOAD */
