@@ -4,23 +4,27 @@
 *  27 Nov 2022         0.0.1           Itachi      Interface Created.    
 *    
 *****************************************************************************/    
-/* @file:   http_client.h   
+/* @file:   task_common.h   
  * @brief:  This header contains   
  */ 
-#ifndef MAIN_HTTP_CLIENT_HTTP_CLIENT_H_
-#define MAIN_HTTP_CLIENT_HTTP_CLIENT_H_
+#ifndef MAIN_TASK_COMMON_TASK_COMMON_H_
+#define MAIN_TASK_COMMON_TASK_COMMON_H_
 
 /******************************************************************************
 * Includes
 *******************************************************************************/
+#include <string.h>
+#include <stdint.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "esp_system.h"
+#include "esp_log.h"
 
 /******************************************************************************
 * Preprocessor Constants
 *******************************************************************************/
-#define HTTP_TASK_STACK_SIZE							(10*1024)
-#define HTTP_TASK_PRIORITY								(tskIDLE_PRIORITY + 1)
-#define HTTP_TASK_INDEX									(0)
 
 
 /******************************************************************************
@@ -37,19 +41,29 @@
 * Typedefs
 *******************************************************************************/
 
+/******************************************************************************
+* Module Typedefs
+*******************************************************************************/
+typedef struct
+{
+    TaskFunction_t const TaskCodePtr;           /*< Pointer to the task function */
+    const char * const TaskName;                /*< String task name             */
+    const uint16_t StackDepth;                  /*< Stack depth                  */
+    void * const ParametersPtr;                 /*< Parameter Pointer            */
+    UBaseType_t TaskPriority;                   /*< Task Priority                */
+    TaskHandle_t * const TaskHandle;            /*< Pointer to task handle       */
+}TaskInitParams_t;
+
 
 /******************************************************************************
 * Variables
 *******************************************************************************/
-
+extern TaskHandle_t xHTTP_handler;
+extern TaskInitParams_t const TasksTable[];
 
 /******************************************************************************
 * Function Prototypes
 *******************************************************************************/
-void http_client_init();
-void http_task(void* param);
-void http_client_req();
-void https_client_req(void);
 
 
-#endif /* MAIN_HTTP_CLIENT_HTTP_CLIENT_H_ */
+#endif /* MAIN_TASK_COMMON_TASK_COMMON_H_ */
