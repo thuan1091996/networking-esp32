@@ -71,6 +71,7 @@ TaskInitParams_t const TasksTable[] =
 {
  // Function pointer,	String Name,	Stack size,		Parameter,	Priority,	Task Handle
    {&http_task,	"HTTP Task",	HTTP_TASK_STACK_SIZE,  NULL, HTTP_TASK_PRIORITY, &xHTTP_handler},
+   {&tcp_client_socket_task, "TCP Socket Task", TCP_CLIENT_SOCKET_TASK_STACK_SIZE, NULL, TCP_CLIENT_SOCKET_TASK_PRIORITY, &xTCP_socket_handler},
 };
 
 

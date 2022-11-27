@@ -37,7 +37,8 @@
 /******************************************************************************    
 * Module Variable Definitions    
 *******************************************************************************/    
-    
+TaskHandle_t xTCP_socket_handler = NULL;
+
 
 /******************************************************************************    
 * Function Prototypes    
@@ -119,6 +120,7 @@ void tcp_client_socket_task(void* param)
 				if(recv_msg[0] == 'S')
 				{
 					is_terminate_conn = true;
+					break;
 				}
 			}
 			vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -133,7 +135,7 @@ void tcp_client_socket_task(void* param)
         }
 	}
 	ESP_LOGI(MODULE_NAME, "Terminated connection");
-	vTaskDelete(TasksTable[TCP_CLIENT_SOCKET_TASK_INDEX].TaskHandle);
+	vTaskDelete(NULL);
 	ESP_LOGI(MODULE_NAME, "TCP socket client task deleted \r\n");
 	ESP_LOGI(MODULE_NAME, "/************************ TCP SOCKET CLIENT FINISHED ************************/\r\n");
 
