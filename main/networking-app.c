@@ -26,7 +26,7 @@
 
 #include "task_common/task_common.h"
 #include "http_client/http_client.h"
-
+#include "socket_client/tcp_client_socket.h"
 
 
 /******************************************************************************
@@ -162,6 +162,7 @@ void wifi_init_sta(void)
     {
         ESP_LOGI(MODULE_NAME, "connected to ap SSID:%s password:%s", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
     	http_client_init();
+    	tcp_client_socket_init();
     }
     else if (bits & WIFI_FAIL_BIT)
     {
@@ -177,9 +178,10 @@ void app_main(void)
 {
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
+    if (ESP_OK != ret)
+    {
+    	ESP_ERROR_CHECK(nvs_flash_erase());
+    	ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
     ESP_LOGI(MODULE_NAME, "NVS Flash initialized \r\n");

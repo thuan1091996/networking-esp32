@@ -20,9 +20,8 @@
 #include <esp_http_client.h>
 #include <esp_crt_bundle.h>
 
-
-#include "http_client.h"
 #include "task_common/task_common.h"
+#include "http_client.h"
 
    
 /******************************************************************************    
@@ -32,9 +31,9 @@
 #define HTTP_RESP_MAX_LEN				(512)
 #define HTTPS_DEFAULT_RECV_LEN			(10)
 
+#define HTTP_USE_HTTP_REQUEST			0
+#define HTTP_USE_HTTPS_REQUEST			0
 #define HTTP_USE_CHUNKING				1
-#define HTTP_USE_HTTP_REQUEST			1
-#define HTTP_USE_HTTPS_REQUEST			1
 #define HTTPS_USE_ESP_CERT_BUNDLE		1
 
 
@@ -180,11 +179,12 @@ void http_client_init()
 				TasksTable[HTTP_TASK_INDEX].TaskPriority,
 				TasksTable[HTTP_TASK_INDEX].TaskHandle);
 	assert(NULL != TasksTable[HTTP_TASK_INDEX].TaskHandle);
-	ESP_LOGI(MODULE_NAME, "HTTP task created \r\n");
 }
 
 void http_task(void* param)
 {
+
+	ESP_LOGI(MODULE_NAME, "/************************ HTTP STARTED ************************/\r\n");
 
 #if HTTP_USE_HTTP_REQUEST
 	/* HTTP request */
@@ -193,15 +193,13 @@ void http_task(void* param)
 	ESP_LOGI(MODULE_NAME, "/************************ END TESTING HTTP REQUEST************************/\r\n");
 #endif /* End of HTTP_USE_HTTP_REQUEST */
 
-	vTaskDelay(pdMS_TO_TICKS(3000));
-
 #if HTTP_USE_HTTPS_REQUEST
 	ESP_LOGI(MODULE_NAME, "/************************ TESTING HTTPS REQUEST************************/\r\n");
 	https_client_req();
 	ESP_LOGI(MODULE_NAME, "/************************ END TESTING HTTPS REQUEST************************/\r\n");
 
 #endif /* End of HTTP_USE_HTTPS_REQUEST */
-
+	ESP_LOGI(MODULE_NAME, "/************************ HTTP FINISHED ************************/\r\n");
 	while(1)
 	{
 		vTaskDelay(pdMS_TO_TICKS(500)); /* Delay to prevent WDT trigger */
